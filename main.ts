@@ -443,25 +443,6 @@ export default class TypstBookPreviewPlugin extends Plugin {
     return this.settings.typstCommand.trim() || DEFAULT_SETTINGS.typstCommand;
   }
 
-  diagnosticText(): string {
-    const lines = [
-      this.state.message,
-      `Main file: ${this.getMainTypstPath()}`,
-      `Output PDF: ${this.getOutputPdfPath()}`,
-      `Typst command: ${this.getDisplayTypstCommand()}`
-    ];
-
-    if (this.state.updatedAt) {
-      lines.push(`Updated: ${new Date(this.state.updatedAt).toLocaleString()}`);
-    }
-
-    if (this.state.errorText) {
-      lines.push("", this.state.errorText);
-    }
-
-    return lines.join("\n");
-  }
-
   async loadSettings(): Promise<void> {
     const loaded = (await this.loadData()) as Partial<TypstBookPreviewSettings> | null;
     this.settings = {
@@ -826,9 +807,6 @@ class TypstBookPreviewView extends ItemView {
     this.createActionButton(actionsEl, "Compile again", () => {
       void this.plugin.compile("manual");
     });
-    this.createActionButton(actionsEl, "Copy", () => {
-      void copyToClipboard(this.plugin.diagnosticText());
-    });
     this.createActionButton(actionsEl, "Use active file", () => {
       const activeFile = this.app.workspace.getActiveFile();
       if (!activeFile || !isTypstSourcePath(activeFile.path)) {
@@ -1109,15 +1087,6 @@ function isImageAssetPath(vaultPath: string): boolean {
 
 function getOutputPdfPath(inputVaultPath: string): string {
   return inputVaultPath.replace(/\.typ(?:\.md)?$/i, ".pdf");
-}
-
-async function copyToClipboard(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    new Notice("Typst Book Preview: copied diagnostics.");
-  } catch (error) {
-    new Notice(`Typst Book Preview: copy failed: ${errorToString(error)}`);
-  }
 }
 
 function openPluginSettings(app: App): void {

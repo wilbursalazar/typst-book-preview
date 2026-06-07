@@ -96,7 +96,6 @@ This plugin is desktop-only because it runs the local Typst CLI. It does not mak
 - Shell execution: the plugin runs the configured Typst command with `typst compile`. Arguments are passed with `execFile`, not through a shell string.
 - File access: Typst receives the vault folder as `--root`, the selected Typst source file, and the output PDF path. The plugin validates configured paths as vault-relative before compiling.
 - Vault enumeration: the `Choose file` setting lists `.typ` and `.typ.md` files so you can select a main Typst file.
-- Clipboard access: the preview pane has a `Copy` diagnostics button that writes compile diagnostics to the clipboard only when clicked.
 
 ## Troubleshooting
 
