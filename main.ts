@@ -239,7 +239,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
       (leaf) => new TypstBookPreviewView(leaf, this)
     );
 
-    this.addRibbonIcon("book-open", "Open Typst Book Preview", () => {
+    this.addRibbonIcon("book-open", "Open Typster preview", () => {
       void this.activateView();
     });
 
@@ -270,7 +270,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
 
         if (!checking) {
           void this.setMainTypstPath(activeFile.path);
-          new Notice(`Typst Book Preview: main file set to ${activeFile.path}`);
+          new Notice(`Typster: main file set to ${activeFile.path}`);
         }
         return true;
       }
@@ -291,7 +291,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
         }
 
         void this.setMainTypstPath(file.path);
-        new Notice(`Typst Book Preview: main file moved to ${file.path}`);
+        new Notice(`Typster: main file moved to ${file.path}`);
       })
     );
 
@@ -355,7 +355,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
       if (reason === "manual") {
         await this.activateView();
       }
-      new Notice("Typst Book Preview: compile could not start.");
+      new Notice("Typster: compile could not start.");
       this.finishCompile();
       return;
     }
@@ -405,7 +405,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
       if (reason === "manual") {
         await this.activateView();
       }
-      new Notice("Typst Book Preview: Typst compile failed.");
+      new Notice("Typster: Typst compile failed.");
     } finally {
       this.finishCompile();
     }
@@ -730,7 +730,7 @@ class TypstBookPreviewView extends ItemView {
   }
 
   getDisplayText(): string {
-    return "Typst Book Preview";
+    return "Typster";
   }
 
   getIcon(): string {
@@ -745,14 +745,14 @@ class TypstBookPreviewView extends ItemView {
     const toolbarEl = container.createDiv({ cls: "typst-book-preview-toolbar" });
     toolbarEl.createDiv({
       cls: "typst-book-preview-title",
-      text: "Typst Book Preview"
+      text: "Typster"
     });
 
     const compileButton = toolbarEl.createEl("button", {
       cls: "clickable-icon typst-book-preview-compile-button",
       attr: {
-        "aria-label": "Compile Typst Book",
-        title: "Compile Typst Book"
+        "aria-label": "Compile Typst document",
+        title: "Compile Typst document"
       }
     });
     compileButton.createSpan({ text: "Compile" });
@@ -814,7 +814,7 @@ class TypstBookPreviewView extends ItemView {
         return;
       }
       void this.plugin.setMainTypstPath(activeFile.path);
-      new Notice(`Typst Book Preview: main file set to ${activeFile.path}`);
+      new Notice(`Typster: main file set to ${activeFile.path}`);
     });
     this.createActionButton(actionsEl, "Settings", () => {
       openPluginSettings(this.app);
@@ -1098,7 +1098,7 @@ function openPluginSettings(app: App): void {
   }).setting;
 
   if (!setting) {
-    new Notice("Open Settings > Typst Book Preview.");
+    new Notice("Open Settings > Typster.");
     return;
   }
 
@@ -1110,7 +1110,7 @@ function getVaultBasePath(app: App): string {
   const adapter = app.vault.adapter as { getBasePath?: () => string };
   const basePath = adapter.getBasePath?.();
   if (!basePath) {
-    throw new Error("Typst Book Preview requires the desktop file-system vault adapter.");
+    throw new Error("Typster requires the desktop file-system vault adapter.");
   }
   return basePath;
 }

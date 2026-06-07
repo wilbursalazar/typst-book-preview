@@ -1,6 +1,6 @@
-# Typst Book Preview
+# Typster
 
-Typst Book Preview is an Obsidian desktop plugin for writers and typesetters who keep Typst projects inside a vault. It compiles a configured `.typ` or `.typ.md` entry file with the local Typst CLI, previews the generated PDF in Obsidian, and adds a compact Typst toolbar above source-mode Typst notes.
+Typster is an Obsidian desktop plugin for writers and typesetters who keep Typst projects inside a vault. It compiles a configured `.typ` or `.typ.md` entry file with the local Typst CLI, previews the generated PDF in Obsidian, and adds a compact Typst toolbar above source-mode Typst notes.
 
 ## Features
 
@@ -37,11 +37,11 @@ main.js
 styles.css
 ```
 
-Then open `Settings > Community plugins`, disable restricted mode if needed, and enable `Typst Book Preview`.
+Then open `Settings > Community plugins`, disable restricted mode if needed, and enable `Typster`.
 
 ## Use
 
-1. Open `Settings > Typst Book Preview`.
+1. Open `Settings > Typster`.
 2. Set `Main Typst file` to the vault-relative path of your entry file.
 3. Use `Choose file` to search existing `.typ` and `.typ.md` files.
 4. Run `Open preview` from the command palette or the ribbon icon.
