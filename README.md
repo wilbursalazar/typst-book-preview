@@ -15,11 +15,11 @@ Typst Book Preview is an Obsidian desktop plugin for writers and typesetters who
 
 ## Requirements
 
-- Obsidian desktop.
+- Obsidian desktop 1.13.0 or newer.
 - A local Typst CLI installation.
 - A file-system vault. Mobile is not supported because the plugin runs the local Typst command.
 
-The default Typst command is `typst`. On macOS, the plugin also checks common Homebrew paths such as `/opt/homebrew/bin/typst` and `/usr/local/bin/typst`.
+The default Typst command is `typst`. If that is not available in the environment used by the app, set `Typst CLI command` to the absolute path of the Typst executable.
 
 ## Install Manually
 
@@ -89,12 +89,21 @@ Use Typst-native image syntax for vault files:
 
 Relative paths are resolved from the main Typst file. Paths that start with `/` are resolved from the vault root because the plugin compiles with `--root` set to the vault folder.
 
+## System Access
+
+This plugin is desktop-only because it runs the local Typst CLI. It does not make network requests.
+
+- Shell execution: the plugin runs the configured Typst command with `typst compile`. Arguments are passed with `execFile`, not through a shell string.
+- File access: Typst receives the vault folder as `--root`, the selected Typst source file, and the output PDF path. The plugin validates configured paths as vault-relative before compiling.
+- Vault enumeration: the `Choose file` setting lists `.typ` and `.typ.md` files so you can select a main Typst file.
+- Clipboard access: the preview pane has a `Copy` diagnostics button that writes compile diagnostics to the clipboard only when clicked.
+
 ## Troubleshooting
 
 - If compiling fails with `ENOENT`, set `Typst CLI command` to the absolute path of the Typst executable.
-- If the main file is not found, use `Choose file` in settings or run `Use Active File as Main Typst Book`.
+- If the main file is not found, use `Choose file` in settings or run `Use active file as main file`.
 - If Typst syntax fails inside a `.typ.md` file, remember that the plugin sends the file directly to Typst. The file contents need to be valid Typst.
-- If the PDF does not refresh, run `Compile Typst Book` manually and check the diagnostics shown in the preview pane.
+- If the PDF does not refresh, run `Compile` manually and check the diagnostics shown in the preview pane.
 
 ## Development
 

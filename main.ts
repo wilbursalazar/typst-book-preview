@@ -6,15 +6,13 @@ import {
   Notice,
   Plugin,
   PluginSettingTab,
-  Setting,
-  SuggestModal,
+  SettingDefinitionItem,
   TAbstractFile,
   TFile,
   WorkspaceLeaf,
   normalizePath
 } from "obsidian";
 import { execFile, ExecFileOptionsWithStringEncoding, ExecFileException } from "child_process";
-import { existsSync } from "fs";
 import * as path from "path";
 
 const VIEW_TYPE_TYPST_BOOK_PREVIEW = "typst-book-preview";
@@ -246,7 +244,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "open-typst-book-preview",
+      id: "open-preview",
       name: "Open preview",
       callback: () => {
         void this.activateView();
@@ -254,7 +252,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "compile-typst-book",
+      id: "compile",
       name: "Compile",
       callback: () => {
         void this.compile("manual");
@@ -262,7 +260,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "use-active-file-as-main-typst-book",
+      id: "use-active-file-as-main-file",
       name: "Use active file as main file",
       checkCallback: (checking) => {
         const activeFile = this.app.workspace.getActiveFile();
@@ -311,7 +309,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
   async activateView(): Promise<void> {
     const existingLeaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_TYPST_BOOK_PREVIEW)[0];
     if (existingLeaf) {
-      this.app.workspace.revealLeaf(existingLeaf);
+      this.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
       return;
     }
 
@@ -320,7 +318,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
       type: VIEW_TYPE_TYPST_BOOK_PREVIEW,
       active: true
     });
-    this.app.workspace.revealLeaf(leaf);
+    this.app.workspace.setActiveLeaf(leaf, { focus: true });
   }
 
   scheduleCompile(reason: string, delayMs = 250): void {
@@ -558,18 +556,7 @@ export default class TypstBookPreviewPlugin extends Plugin {
   }
 
   private getTypstCommand(): string {
-    const configuredCommand = this.settings.typstCommand.trim() || DEFAULT_SETTINGS.typstCommand;
-    if (configuredCommand !== DEFAULT_SETTINGS.typstCommand) {
-      return configuredCommand;
-    }
-
-    for (const candidate of ["/opt/homebrew/bin/typst", "/usr/local/bin/typst"]) {
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    return configuredCommand;
+    return this.settings.typstCommand.trim() || DEFAULT_SETTINGS.typstCommand;
   }
 
   private getBookRootPath(): string {
@@ -643,7 +630,7 @@ class TypstToolbarManager {
   }
 
   private createToolbar(): HTMLElement {
-    const toolbarEl = document.createElement("div");
+    const toolbarEl = activeDocument.createElement("div");
     toolbarEl.addClass("typst-inline-toolbar");
 
     let hasVisibleTool = false;
@@ -665,7 +652,7 @@ class TypstToolbarManager {
           type: "button"
         }
       });
-      buttonEl.addEventListener("mousedown", (event) => event.preventDefault());
+      buttonEl.addEventListener("mousedown", (event: MouseEvent) => event.preventDefault());
       buttonEl.addEventListener("click", () => this.applyTool(tool));
       hasVisibleTool = true;
     }
@@ -913,142 +900,155 @@ class TypstBookPreviewSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      {
+        type: "group",
+        heading: "General",
+        items: [
+          {
+            name: "Typst CLI command",
+            desc: "Command or absolute path to the local Typst CLI. Arguments are passed separately without a shell.",
+            control: {
+              type: "text",
+              key: "typstCommand",
+              defaultValue: DEFAULT_SETTINGS.typstCommand,
+              placeholder: DEFAULT_SETTINGS.typstCommand
+            }
+          },
+          {
+            name: "Main Typst file",
+            desc: "Vault-relative path to the book entry file. Search existing .typ and .typ.md files.",
+            control: {
+              type: "file",
+              key: "mainTypstPath",
+              defaultValue: DEFAULT_SETTINGS.mainTypstPath,
+              placeholder: DEFAULT_SETTINGS.mainTypstPath,
+              filter: (file: TFile) => isTypstSourcePath(file.path)
+            }
+          },
+          {
+            name: "Typst styling toolbar",
+            desc: "Show formatting buttons above source-mode .typ and .typ.md notes.",
+            control: {
+              type: "toggle",
+              key: "showTypstToolbar",
+              defaultValue: DEFAULT_SETTINGS.showTypstToolbar
+            }
+          }
+        ]
+      },
+      {
+        type: "group",
+        heading: "Typst toolbar groups",
+        items: TYPST_TOOLBAR_GROUP_OPTIONS.map((group) => ({
+          name: group.name,
+          desc: group.description,
+          control: {
+            type: "toggle",
+            key: toolbarGroupSettingKey(group.id),
+            defaultValue: DEFAULT_TOOLBAR_GROUPS[group.id]
+          }
+        }))
+      },
+      {
+        type: "group",
+        heading: "Preview pane",
+        items: [
+          {
+            name: "Open preview",
+            desc: "Open the PDF preview pane.",
+            action: () => {
+              void this.plugin.activateView();
+            }
+          },
+          {
+            name: "Use active file",
+            desc: "Use the active .typ or .typ.md file as the main Typst file.",
+            action: () => {
+              const activeFile = this.app.workspace.getActiveFile();
+              if (!activeFile || !isTypstSourcePath(activeFile.path)) {
+                new Notice("Open a .typ or .typ.md file first.");
+                return;
+              }
+              void this.plugin.setMainTypstPath(activeFile.path);
+            }
+          },
+          {
+            name: "Compile now",
+            desc: "Compile the configured Typst file.",
+            action: () => {
+              void this.plugin.compile("manual");
+            }
+          }
+        ]
+      }
+    ];
+  }
 
-    new Setting(containerEl)
-      .setName("Typst Book Preview")
-      .setHeading();
-
-    new Setting(containerEl)
-      .setName("Typst CLI command")
-      .setDesc("Command or absolute path to the local Typst CLI. Arguments are passed separately without a shell.")
-      .addText((text) => {
-        text
-          .setPlaceholder(DEFAULT_SETTINGS.typstCommand)
-          .setValue(this.plugin.settings.typstCommand)
-          .onChange(async (value) => {
-            this.plugin.settings.typstCommand = value.trim() || DEFAULT_SETTINGS.typstCommand;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName("Main Typst file")
-      .setDesc("Vault-relative path to the book entry file. Use Choose file to search existing .typ and .typ.md files.")
-      .addText((text) => {
-        text
-          .setPlaceholder(DEFAULT_SETTINGS.mainTypstPath)
-          .setValue(this.plugin.settings.mainTypstPath)
-          .onChange(async (value) => {
-            await this.plugin.setMainTypstPath(value.trim() || DEFAULT_SETTINGS.mainTypstPath);
-          });
-      })
-      .addButton((button) => {
-        button
-          .setButtonText("Choose file")
-          .onClick(() => {
-            new TypstSourceSuggestModal(this.app, async (file) => {
-              await this.plugin.setMainTypstPath(file.path);
-              this.display();
-              new Notice(`Typst Book Preview: main file set to ${file.path}`);
-            }).open();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName("Typst styling toolbar")
-      .setDesc("Show formatting buttons above source-mode .typ and .typ.md notes.")
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.showTypstToolbar)
-          .onChange(async (value) => {
-            this.plugin.settings.showTypstToolbar = value;
-            await this.plugin.saveSettings();
-            this.plugin.refreshTypstToolbar();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName("Typst toolbar groups")
-      .setHeading();
-
-    for (const group of TYPST_TOOLBAR_GROUP_OPTIONS) {
-      new Setting(containerEl)
-        .setName(group.name)
-        .setDesc(group.description)
-        .addToggle((toggle) => {
-          toggle
-            .setValue(this.plugin.isTypstToolbarGroupEnabled(group.id))
-            .onChange(async (value) => {
-              this.plugin.settings.toolbarGroups[group.id] = value;
-              await this.plugin.saveSettings();
-              this.plugin.refreshTypstToolbar();
-            });
-        });
+  getControlValue(key: string): unknown {
+    const toolbarGroup = toolbarGroupFromSettingKey(key);
+    if (toolbarGroup) {
+      return this.plugin.isTypstToolbarGroupEnabled(toolbarGroup);
     }
 
-    new Setting(containerEl)
-      .setName("Preview pane")
-      .setDesc("Open the PDF preview pane and compile the configured book.")
-      .addButton((button) => {
-        button
-          .setButtonText("Open preview")
-          .onClick(() => {
-            void this.plugin.activateView();
-          });
-      })
-      .addButton((button) => {
-        button
-          .setButtonText("Use active file")
-          .onClick(() => {
-            const activeFile = this.app.workspace.getActiveFile();
-            if (!activeFile || !isTypstSourcePath(activeFile.path)) {
-              new Notice("Open a .typ or .typ.md file first.");
-              return;
-            }
-            void this.plugin.setMainTypstPath(activeFile.path);
-          });
-      })
-      .addButton((button) => {
-        button
-          .setButtonText("Compile now")
-          .setCta()
-          .onClick(() => {
-            void this.plugin.compile("manual");
-          });
-      });
+    return super.getControlValue(key);
+  }
+
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    const toolbarGroup = toolbarGroupFromSettingKey(key);
+    if (toolbarGroup) {
+      this.plugin.settings.toolbarGroups[toolbarGroup] = value === true;
+      await this.plugin.saveSettings();
+      this.plugin.refreshTypstToolbar();
+      return;
+    }
+
+    if (key === "typstCommand") {
+      this.plugin.settings.typstCommand = String(value ?? "").trim() || DEFAULT_SETTINGS.typstCommand;
+      await this.plugin.saveSettings();
+      return;
+    }
+
+    if (key === "mainTypstPath") {
+      await this.plugin.setMainTypstPath(String(value ?? "").trim() || DEFAULT_SETTINGS.mainTypstPath);
+      return;
+    }
+
+    if (key === "showTypstToolbar") {
+      this.plugin.settings.showTypstToolbar = value === true;
+      await this.plugin.saveSettings();
+      this.plugin.refreshTypstToolbar();
+      return;
+    }
+
+    await super.setControlValue(key, value);
   }
 }
 
-class TypstSourceSuggestModal extends SuggestModal<TFile> {
-  private onChooseFile: (file: TFile) => void | Promise<void>;
+function toolbarGroupSettingKey(group: TypstToolbarGroup): string {
+  return `toolbarGroups.${group}`;
+}
 
-  constructor(app: App, onChooseFile: (file: TFile) => void | Promise<void>) {
-    super(app);
-    this.onChooseFile = onChooseFile;
-    this.setPlaceholder("Search .typ or .typ.md files");
+function toolbarGroupFromSettingKey(key: string): TypstToolbarGroup | null {
+  const prefix = "toolbarGroups.";
+  if (!key.startsWith(prefix)) {
+    return null;
   }
 
-  getSuggestions(query: string): TFile[] {
-    const normalizedQuery = query.trim().toLowerCase();
-    return this.app.vault
-      .getFiles()
-      .filter((file) => {
-        return isTypstSourcePath(file.path) && file.path.toLowerCase().includes(normalizedQuery);
-      })
-      .sort((left, right) => left.path.localeCompare(right.path))
-      .slice(0, 50);
-  }
+  const group = key.slice(prefix.length) as TypstToolbarGroup;
+  return group in DEFAULT_TOOLBAR_GROUPS ? group : null;
+}
 
-  renderSuggestion(file: TFile, el: HTMLElement): void {
-    el.createDiv({ cls: "suggestion-title", text: file.basename });
-    el.createDiv({ cls: "suggestion-note", text: file.path });
-  }
+class TypstCommandError extends Error {
+  stdout: string;
+  stderr: string;
 
-  onChooseSuggestion(file: TFile, _event: MouseEvent | KeyboardEvent): void {
-    void this.onChooseFile(file);
+  constructor(message: string, stdout: string, stderr: string) {
+    super(message);
+    this.name = "TypstCommandError";
+    this.stdout = stdout;
+    this.stderr = stderr;
   }
 }
 
@@ -1060,10 +1060,7 @@ function execFilePromise(
   return new Promise((resolve, reject) => {
     execFile(command, args, options, (error, stdout, stderr) => {
       if (error) {
-        const execError = error as ExecFileException & { stdout?: string; stderr?: string };
-        execError.stdout = stdout;
-        execError.stderr = stderr;
-        reject(execError);
+        reject(new TypstCommandError(error.message, stdout ?? "", stderr ?? ""));
         return;
       }
 
